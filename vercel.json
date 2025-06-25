@@ -1,17 +1,23 @@
 {
   "redirects": [
     {
-      "source": "/",
-      "destination": "https://your-site.blogspot.com",
+      "source": "/api/fetch",
+      "has": [
+        { "type": "query", "key": "url" }
+      ],
+      "destination": "/api/fetch",
       "permanent": false
     },
     {
-      "source": "/favicon.ico",
-      "destination": "https://your-site.blogspot.com",
+      "source": "/api/download",
+      "has": [
+        { "type": "query", "key": "id" }
+      ],
+      "destination": "/api/download",
       "permanent": false
     },
     {
-      "source": "/:path((?!api/).*)",
+      "source": "/:any*",
       "destination": "https://your-site.blogspot.com",
       "permanent": false
     }
