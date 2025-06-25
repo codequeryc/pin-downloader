@@ -18,7 +18,7 @@
     },
     {
       "source": "/:match*",
-      "destination": "https://your-site.blogspot.com",
+      "destination": "https://pindl.blogspot.com",
       "permanent": false
     }
   ]
