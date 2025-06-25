@@ -17,8 +17,13 @@
       "permanent": false
     },
     {
+      "source": "/api/:path*",
+      "destination": "https://your-site.blogspot.com",
+      "permanent": false
+    },
+    {
       "source": "/:match*",
-      "destination": "https://pindl.blogspot.com",
+      "destination": "https://your-site.blogspot.com",
       "permanent": false
     }
   ]
