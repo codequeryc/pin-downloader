@@ -1,51 +1,35 @@
-import crypto from 'crypto';
-
-const SECRET_KEY = 'my_secret_key';
-
-function validateToken(url, expires, token) {
-  const valid = crypto.createHmac('sha256', SECRET_KEY)
-    .update(url + expires)
-    .digest('hex');
-
-  return valid === token && Math.floor(Date.now() / 1000) <= parseInt(expires);
-}
-
 export default async function handler(req, res) {
-  const { url, expires, token, name } = req.query;
-
-  if (!url || !expires || !token || !name)
-    return res.status(400).send('Missing required parameters');
-
-  if (!validateToken(url, expires, token)) {
-    return res.status(403).send('Expired or invalid link');
-  }
+  const { url } = req.query;
+  if (!url) return res.status(400).send("❌ Missing media URL");
 
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0' // force Pinterest to allow stream
-      }
-    });
+    const response = await fetch(url);
+    if (!response.ok) return res.status(400).send("❌ Failed to fetch media");
 
-    if (!response.ok) return res.status(404).send('File not found');
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
+    const buffer = await response.arrayBuffer();
 
-    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
-    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+    // Generate unique filename
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 100000);
+    let ext = "bin"; // fallback extension
 
-    const reader = response.body.getReader();
-    const stream = new ReadableStream({
-      async start(controller) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          controller.enqueue(value);
-        }
-        controller.close();
-      }
-    });
+    // Extract extension from content-type
+    if (contentType.includes("video/mp4")) ext = "mp4";
+    else if (contentType.includes("image/jpeg")) ext = "jpg";
+    else if (contentType.includes("image/png")) ext = "png";
+    else if (contentType.includes("image/gif")) ext = "gif";
 
-    return new Response(stream).body.pipeTo(res);
+    const filename = `pinterest-${timestamp}-${random}.${ext}`;
+
+    // Set headers for download
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.setHeader("Cache-Control", "no-cache");
+
+    res.status(200).send(Buffer.from(buffer));
   } catch (err) {
-    return res.status(500).send('Download failed');
+    console.error("Download Error:", err);
+    res.status(500).send("❌ Internal Server Error");
   }
 }
