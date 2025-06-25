@@ -1,39 +1,43 @@
-import crypto from 'crypto';
-
-const SECRET_KEY = 'my_secret_key'; // Change this securely
-const EXPIRE_TIME = 300; // 5 minutes
-
-function generateToken(url, expires) {
-  return crypto.createHmac('sha256', SECRET_KEY)
-    .update(url + expires)
-    .digest('hex');
-}
-
 export default async function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-
   const { url } = req.query;
-  if (!url) return res.status(400).json({ success: false, error: "Missing URL" });
+  if (!url) return res.status(400).json({ success: false, error: "URL is required" });
 
   try {
-    const html = await fetch(url).then(r => r.text());
-    const match = html.match(/"contentUrl":"(https:\/\/[^"]+\.mp4)"/);
-    if (!match) return res.status(404).json({ success: false, error: "Video not found." });
-
-    const mediaUrl = match[1].replace(/\\u002F/g, '/');
-
-    const expires = Math.floor(Date.now() / 1000) + EXPIRE_TIME;
-    const token = generateToken(mediaUrl, expires);
-
-    const filename = `Pinterest-${Date.now()}.mp4`;
-    const downloadLink = `${req.headers.host}/api/download?url=${encodeURIComponent(mediaUrl)}&expires=${expires}&token=${token}&name=${encodeURIComponent(filename)}`;
-
-    res.json({
-      success: true,
-      media: mediaUrl,
-      download: `https://${downloadLink}`
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0", // some pages block bots
+      },
     });
-  } catch (e) {
-    res.status(500).json({ success: false, error: "Server error" });
+
+    if (!response.ok) {
+      return res.status(400).json({ success: false, error: "Failed to load Pinterest page" });
+    }
+
+    const html = await response.text();
+
+    // Match video URL in the HTML
+    const videoRegex = /"contentUrl":"(https:\/\/[^"]+\.mp4)"/;
+    const imageRegex = /"url":"(https:\/\/i\.pinimg\.com\/[^"]+\.(?:jpg|png|webp))"/;
+
+    let mediaUrl = null;
+
+    const videoMatch = html.match(videoRegex);
+    if (videoMatch) {
+      mediaUrl = videoMatch[1].replace(/\\u002F/g, "/");
+    } else {
+      const imageMatch = html.match(imageRegex);
+      if (imageMatch) {
+        mediaUrl = imageMatch[1].replace(/\\u002F/g, "/");
+      }
+    }
+
+    if (!mediaUrl) {
+      return res.status(404).json({ success: false, error: "❌ Media not found in the page." });
+    }
+
+    return res.json({ success: true, mediaUrl });
+  } catch (err) {
+    console.error("Fetch error:", err);
+    return res.status(500).json({ success: false, error: "Internal server error" });
   }
 }
