@@ -17,11 +17,6 @@
       "permanent": false
     },
     {
-      "source": "/api/:match*",
-      "destination": "/api/:match*",
-      "permanent": false
-    },
-    {
       "source": "/:match*",
       "destination": "https://your-site.blogspot.com",
       "permanent": false
