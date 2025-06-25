@@ -1,45 +1,39 @@
-import { REDIRECT_URL } from "../lib/config.js";
+import crypto from 'crypto';
+
+const SECRET_KEY = 'my_secret_key'; // Change this securely
+const EXPIRE_TIME = 300; // 5 minutes
+
+function generateToken(url, expires) {
+  return crypto.createHmac('sha256', SECRET_KEY)
+    .update(url + expires)
+    .digest('hex');
+}
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
   const { url } = req.query;
-
-  // ✅ Redirect if URL is missing
-  if (!url) {
-    res.writeHead(302, { Location: REDIRECT_URL });
-    return res.end();
-  }
-
-  let finalUrl = url;
-
-  // 🔁 Resolve short link if pin.it
-  if (url.includes("pin.it")) {
-    try {
-      const response = await fetch(url, { redirect: "manual" });
-      const location = response.headers.get("location");
-
-      if (location && location.includes("pinterest.com")) {
-        finalUrl = location;
-      } else {
-        return res.status(400).json({ error: "Invalid Pinterest short URL" });
-      }
-    } catch {
-      return res.status(400).json({ error: "Failed to resolve short link" });
-    }
-  }
+  if (!url) return res.status(400).json({ success: false, error: "Missing URL" });
 
   try {
-    const page = await fetch(finalUrl);
-    const html = await page.text();
-    const match = html.match(/"contentUrl":"(https:[^"]+\.mp4[^"]*)"/);
+    const html = await fetch(url).then(r => r.text());
+    const match = html.match(/"contentUrl":"(https:\/\/[^"]+\.mp4)"/);
+    if (!match) return res.status(404).json({ success: false, error: "Video not found." });
 
-    if (match && match[1]) {
-      return res.status(200).json({ video: match[1] });
-    } else {
-      return res.status(404).json({ error: "No video found" });
-    }
-  } catch {
-    return res.status(500).json({ error: "Failed to fetch Pinterest page" });
+    const mediaUrl = match[1].replace(/\\u002F/g, '/');
+
+    const expires = Math.floor(Date.now() / 1000) + EXPIRE_TIME;
+    const token = generateToken(mediaUrl, expires);
+
+    const filename = `Pinterest-${Date.now()}.mp4`;
+    const downloadLink = `${req.headers.host}/api/download?url=${encodeURIComponent(mediaUrl)}&expires=${expires}&token=${token}&name=${encodeURIComponent(filename)}`;
+
+    res.json({
+      success: true,
+      media: mediaUrl,
+      download: `https://${downloadLink}`
+    });
+  } catch (e) {
+    res.status(500).json({ success: false, error: "Server error" });
   }
 }
