@@ -7,7 +7,7 @@ function validateToken(url, expires, token) {
     .update(url + expires)
     .digest('hex');
 
-  return token === valid && Math.floor(Date.now() / 1000) <= parseInt(expires);
+  return valid === token && Math.floor(Date.now() / 1000) <= parseInt(expires);
 }
 
 export default async function handler(req, res) {
@@ -17,12 +17,35 @@ export default async function handler(req, res) {
     return res.status(400).send('Missing required parameters');
 
   if (!validateToken(url, expires, token)) {
-    return res.status(403).send('Invalid or expired token');
+    return res.status(403).send('Expired or invalid link');
   }
 
-  // Force download by suggesting a filename
-  res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
-  res.setHeader('Cache-Control', 'no-cache');
-  res.writeHead(302, { Location: url }); // 👈 redirect directly to Pinterest file
-  return res.end();
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0' // force Pinterest to allow stream
+      }
+    });
+
+    if (!response.ok) return res.status(404).send('File not found');
+
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Content-Type', response.headers.get('content-type') || 'application/octet-stream');
+
+    const reader = response.body.getReader();
+    const stream = new ReadableStream({
+      async start(controller) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          controller.enqueue(value);
+        }
+        controller.close();
+      }
+    });
+
+    return new Response(stream).body.pipeTo(res);
+  } catch (err) {
+    return res.status(500).send('Download failed');
+  }
 }
