@@ -1,30 +1,35 @@
-import https from "https";
-import { verifyJWT } from "../lib/jwt.js";
-import { REDIRECT_URL } from "../lib/config.js";
+import crypto from 'crypto';
 
-export default function handler(req, res) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+const SECRET_KEY = 'my_secret_key';
 
-  const { token } = req.query;
-  if (!token) return res.redirect(302, REDIRECT_URL);
+function validateToken(url, expires, token) {
+  const expected = crypto.createHmac('sha256', SECRET_KEY)
+    .update(url + expires)
+    .digest('hex');
 
-  const payload = verifyJWT(token);
-  if (!payload || !payload.url || !payload.exp) {
-    return res.status(403).send("❌ Invalid or tampered token.");
+  return expected === token && Math.floor(Date.now() / 1000) <= parseInt(expires);
+}
+
+export default async function handler(req, res) {
+  const { url, expires, token, name } = req.query;
+
+  if (!url || !expires || !token || !name) {
+    return res.status(400).send('Missing parameters');
   }
 
-  if (Date.now() > payload.exp) {
-    return res.status(403).send("❌ Download link expired.");
+  if (!validateToken(url, expires, token)) {
+    return res.status(403).send('Link expired or invalid token');
   }
 
-  const filename = `pinterest-${Date.now()}.mp4`;
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return res.status(404).send('File not found');
 
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  res.setHeader("Content-Type", "video/mp4");
+    res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+    res.setHeader('Content-Type', 'video/mp4');
 
-  https.get(payload.url, (videoRes) => {
-    videoRes.pipe(res);
-  }).on("error", () => {
-    res.status(500).send("❌ Download failed.");
-  });
+    response.body.pipe(res); // stream video
+  } catch (e) {
+    res.status(500).send('Download failed');
+  }
 }
