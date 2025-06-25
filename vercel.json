@@ -24,7 +24,7 @@
     },
     {
       "source": "/(.*)",
-      "destination": "https://your-site.blogspot.com",
+      "destination": "https://pindl.blogspot.com",
       "statusCode": 302
     }
   ]
