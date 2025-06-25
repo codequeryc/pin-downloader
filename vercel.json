@@ -3,10 +3,7 @@
     {
       "source": "/api/fetch",
       "has": [
-        {
-          "type": "query",
-          "key": "url"
-        }
+        { "type": "query", "key": "url" }
       ],
       "destination": "/api/fetch",
       "permanent": false
@@ -14,21 +11,18 @@
     {
       "source": "/api/download",
       "has": [
-        {
-          "type": "query",
-          "key": "id"
-        }
+        { "type": "query", "key": "id" }
       ],
       "destination": "/api/download",
       "permanent": false
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1",
+      "source": "/api/:match*",
+      "destination": "/api/:match*",
       "permanent": false
     },
     {
-      "source": "/(.*)",
+      "source": "/:match*",
       "destination": "https://your-site.blogspot.com",
       "permanent": false
     }
