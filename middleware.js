@@ -1,19 +1,18 @@
 import { NextResponse } from 'next/server';
 
-// MUST use this Edge-compatible syntax
 export const config = {
-  matcher: '/:path*', // Apply to all paths
+  matcher: '/:path*', // Apply to all routes
 };
 
 export function middleware(request) {
   const url = new URL(request.url);
   const pathname = url.pathname;
-  const search = url.searchParams;
+  const params = url.searchParams;
 
-  // Allow only API paths with required params
-  if (pathname === '/api/fetch' && search.has('url')) return NextResponse.next();
-  if (pathname === '/api/download' && search.has('id')) return NextResponse.next();
+  // Allow only fetch & download API paths with required query param
+  if (pathname === '/api/fetch' && params.has('url')) return NextResponse.next();
+  if (pathname === '/api/download' && params.has('id')) return NextResponse.next();
 
-  // Else redirect to main site
-  return NextResponse.redirect('https://pindl.blogspot.com/');
+  // All other requests — redirect
+  return NextResponse.redirect('https://your-site.blogspot.com');
 }
