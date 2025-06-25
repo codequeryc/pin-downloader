@@ -1,18 +1,20 @@
 import https from "https";
+import { verifyJWT } from "../lib/jwt.js";
 import { REDIRECT_URL } from "../lib/config.js";
 
 export default function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
 
-  const { id } = req.query;
+  const { token } = req.query;
+  if (!token) return res.redirect(302, REDIRECT_URL);
 
-  if (!id) return res.redirect(302, REDIRECT_URL);
+  const payload = verifyJWT(token);
+  if (!payload || !payload.url || !payload.exp) {
+    return res.status(403).send("❌ Invalid or tampered token.");
+  }
 
-  let videoUrl;
-  try {
-    videoUrl = Buffer.from(id, "base64").toString("utf-8");
-  } catch {
-    return res.status(400).send("Invalid base64 ID.");
+  if (Date.now() > payload.exp) {
+    return res.status(403).send("❌ Download link expired.");
   }
 
   const filename = `pinterest-${Date.now()}.mp4`;
@@ -20,9 +22,9 @@ export default function handler(req, res) {
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.setHeader("Content-Type", "video/mp4");
 
-  https.get(videoUrl, (videoRes) => {
+  https.get(payload.url, (videoRes) => {
     videoRes.pipe(res);
   }).on("error", () => {
-    res.status(500).send("Download failed.");
+    res.status(500).send("❌ Download failed.");
   });
 }
