@@ -1,11 +1,11 @@
 export default async function handler(req, res) {
-  const { url } = req.query;
+  res.setHeader("Access-Control-Allow-Origin", "*"); // 👈 ADD THIS
 
+  const { url } = req.query;
   if (!url) return res.status(400).json({ error: "Missing URL" });
 
   let finalUrl = url;
 
-  // Handle short links
   if (url.includes("pin.it")) {
     try {
       const response = await fetch(url, { redirect: "manual" });
@@ -18,7 +18,6 @@ export default async function handler(req, res) {
   try {
     const page = await fetch(finalUrl);
     const html = await page.text();
-
     const match = html.match(/"contentUrl":"(https:[^"]+\.mp4[^"]*)"/);
 
     if (match && match[1]) {
@@ -30,3 +29,4 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: "Failed to fetch page" });
   }
 }
+
