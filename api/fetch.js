@@ -7,7 +7,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, message: "Missing blogId or URL." });
 
   const xata = getXataClient();
-  const blog = await xata.db.blogs.filter({ blogId }).getFirst();
+  const blog = await xata.db.list.filter({ blogId }).getFirst();
 
   if (!blog)
     return res.status(403).json({ success: false, message: "Unauthorized blog." });
