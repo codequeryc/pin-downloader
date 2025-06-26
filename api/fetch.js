@@ -1,4 +1,4 @@
-import { getXataClient } from '../../lib/xata';
+const { getXataClient } = require('../../lib/xata');
 
 export default async function handler(req, res) {
   try {
